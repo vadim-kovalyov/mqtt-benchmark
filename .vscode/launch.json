@@ -12,16 +12,6 @@
             "program": "${fileDirname}",
             "env": {},
             "args": []
-        },
-        {
-            "name": "Test",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceRoot}/arrays/binsearchmatrixrecursive_test.go",
-            "env": {},
-            "args": [],
-            "showLog": true
-        } 
+        }
     ]
 }
