@@ -23,7 +23,7 @@ type Message struct {
 
 // RunResults describes results of a single client / run
 type RunResults struct {
-	ID          int     `json:"id"`
+	Id          int     `json:"id"`
 	Successes   int64   `json:"successes"`
 	Failures    int64   `json:"failures"`
 	RunTime     float64 `json:"run_time"`
@@ -58,25 +58,40 @@ type JSONResults struct {
 func main() {
 
 	var (
+		pub      = flag.Bool("pub", false, "Indicates to initialize te test client as a publisher")
+		sub      = flag.Bool("sub", false, "Indicates to initialize the test client as a subscriber")
 		broker   = flag.String("broker", "tcp://localhost:1883", "MQTT broker endpoint as scheme://host:port")
 		topic    = flag.String("topic", "/test", "MQTT topic for outgoing messages")
+		topics   = flag.Int("topics", 1, "Number of topics to use")
 		username = flag.String("username", "", "MQTT username (empty if auth disabled)")
 		password = flag.String("password", "", "MQTT password (empty if auth disabled)")
 		qos      = flag.Int("qos", 1, "QoS for published messages")
 		size     = flag.Int("size", 100, "Size of the messages payload (bytes)")
-		count    = flag.Int("count", 100, "Number of messages to send per client")
+		count    = flag.Int("count", 100, "Number of messages to send or receive per client")
 		clients  = flag.Int("clients", 10, "Number of clients to start")
 		format   = flag.String("format", "text", "Output format: text|json")
 		quiet    = flag.Bool("quiet", false, "Suppress logs while running")
 	)
 
 	flag.Parse()
+	if !(*pub != *sub) {
+		log.Fatalf("Invalid arguments: must speficy either pub or sub mode")
+		return
+	}
+
 	if *clients < 1 {
 		log.Fatalf("Invalid arguments: number of clients should be > 1, given: %v", *clients)
+		return
 	}
 
 	if *count < 1 {
 		log.Fatalf("Invalid arguments: messages count should be > 1, given: %v", *count)
+		return
+	}
+
+	if *topics < 1 {
+		log.Fatalf("Invalid arguments: topics count should be > 1, given: %v", *topics)
+		return
 	}
 
 	resCh := make(chan *RunResults)
@@ -85,18 +100,33 @@ func main() {
 		if !*quiet {
 			log.Println("Starting client ", i)
 		}
-		c := &Client{
-			ID:         i,
-			BrokerURL:  *broker,
-			BrokerUser: *username,
-			BrokerPass: *password,
-			MsgTopic:   *topic,
-			MsgSize:    *size,
-			MsgCount:   *count,
-			MsgQoS:     byte(*qos),
-			Quiet:      *quiet,
+		if *pub {
+			c := Publisher{
+				id:         i,
+				brokerURL:  *broker,
+				brokerUser: *username,
+				brokerPass: *password,
+				MsgTopic:   fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgSize:    *size,
+				MsgCount:   *count,
+				MsgQoS:     byte(*qos),
+				Quiet:      *quiet,
+			}
+			go c.Run(resCh)
+		} else {
+			c := Subscriber{
+				id:         i,
+				brokerURL:  *broker,
+				brokerUser: *username,
+				brokerPass: *password,
+				MsgTopic:   fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgSize:    *size,
+				MsgCount:   *count,
+				MsgQoS:     byte(*qos),
+				Quiet:      *quiet,
+			}
+			go c.Run(resCh)
 		}
-		go c.Run(resCh)
 	}
 
 	// collect the results
@@ -168,7 +198,7 @@ func printResults(results []*RunResults, totals *TotalResults, format string) {
 		fmt.Println(string(out.Bytes()))
 	default:
 		for _, res := range results {
-			fmt.Printf("======= CLIENT %d =======\n", res.ID)
+			fmt.Printf("======= CLIENT %d =======\n", res.Id)
 			fmt.Printf("Ratio:               %.3f (%d/%d)\n", float64(res.Successes)/float64(res.Successes+res.Failures), res.Successes, res.Successes+res.Failures)
 			fmt.Printf("Runtime (s):         %.3f\n", res.RunTime)
 			fmt.Printf("Msg time min (ms):   %.3f\n", res.MsgTimeMin)
