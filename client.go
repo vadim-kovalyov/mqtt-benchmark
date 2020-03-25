@@ -8,6 +8,17 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+// Message describes a message
+type Message struct {
+	Topic     string
+	QoS       byte
+	Payload   interface{}
+	Sent      time.Time
+	Delivered time.Time
+	Error     bool
+}
+
+// Client represents a connection information for a publisher or a subscriber
 type Client interface {
 	ClientId() int
 	BrokerUrl() string

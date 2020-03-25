@@ -18,6 +18,7 @@ type Publisher struct {
 	MsgCount   int
 	MsgQoS     byte
 	Quiet      bool
+	connected  time.Time
 }
 
 func (c Publisher) ClientId() int {
@@ -41,15 +42,15 @@ func (c Publisher) Run(res chan *RunResults) {
 	pubMsgs := make(chan *Message)
 	doneGen := make(chan bool)
 	donePub := make(chan bool)
-	runResults := new(RunResults)
+	runResults := &RunResults{
+		ID: c.ClientId(),
+	}
 
-	started := time.Now()
 	// start generator
 	go c.genMessages(newMsgs, doneGen)
 	// start publisher
 	go c.pubMessages(newMsgs, pubMsgs, doneGen, donePub)
 
-	runResults.Id = c.ClientId()
 	times := make([]float64, 0, c.MsgCount)
 	for {
 		select {
@@ -58,24 +59,23 @@ func (c Publisher) Run(res chan *RunResults) {
 				log.Printf("CLIENT %v ERROR publishing message: %v: at %v\n", c.ClientId(), m.Topic, m.Sent.Unix())
 				runResults.Failures++
 			} else {
-				// log.Printf("Message published: %v: sent: %v delivered: %v flight time: %v\n", m.Topic, m.Sent, m.Delivered, m.Delivered.Sub(m.Sent))
 				runResults.Successes++
 				times = append(times, float64(m.Delivered.Sub(m.Sent).Milliseconds())) // in milliseconds
 			}
 		case <-donePub:
 			// calculate results
-			duration := time.Now().Sub(started)
+			duration := time.Now().Sub(c.connected)
 			runResults.MsgTimeMin = stats.StatsMin(times)
 			runResults.MsgTimeMax = stats.StatsMax(times)
 			runResults.MsgTimeMean = stats.StatsMean(times)
-			runResults.RunTime = duration.Seconds()
+			runResults.ClientRunTime = duration.Seconds()
 			runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
+
 			// calculate std if sample is > 1, otherwise leave as 0 (convention)
 			if c.MsgCount > 1 {
 				runResults.MsgTimeStd = stats.StatsSampleStandardDeviation(times)
 			}
 
-			// report results and exit
 			res <- runResults
 			return
 		}
@@ -93,12 +93,12 @@ func (c Publisher) genMessages(ch chan *Message, done chan bool) {
 	done <- true
 }
 
-func (c Publisher) pubMessages(in, out chan *Message, doneGen, donePub chan bool) {
+func (c *Publisher) pubMessages(in, out chan *Message, doneGen, donePub chan bool) {
 	onConnected := func(client mqtt.Client) {
+		c.connected = time.Now()
 		if !c.Quiet {
 			log.Printf("CLIENT %v is connected to the broker %v and topic %v\n", c.ClientId(), c.BrokerUrl(), c.MsgTopic)
 		}
-		ctr := 0
 		for {
 			select {
 			case m := <-in:
@@ -113,13 +113,6 @@ func (c Publisher) pubMessages(in, out chan *Message, doneGen, donePub chan bool
 					m.Error = false
 				}
 				out <- m
-
-				if ctr > 0 && ctr%100 == 0 {
-					if !c.Quiet {
-						log.Printf("CLIENT %v published %v messages and keeps publishing...\n", c.ClientId(), ctr)
-					}
-				}
-				ctr++
 			case <-doneGen:
 				donePub <- true
 				if !c.Quiet {

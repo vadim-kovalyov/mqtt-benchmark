@@ -17,6 +17,7 @@ type Subscriber struct {
 	MsgCount   int
 	MsgQoS     byte
 	Quiet      bool
+	connected  time.Time
 }
 
 func (c Subscriber) ClientId() int {
@@ -39,10 +40,8 @@ func (c Subscriber) Run(res chan *RunResults) {
 	doneSub := make(chan bool)
 	rcvMsgs := make(chan *Message)
 	runResults := &RunResults{
-		Id: c.ClientId(),
+		ID: c.ClientId(),
 	}
-
-	started := time.Now()
 
 	c.subscribe(rcvMsgs, doneSub)
 
@@ -57,35 +56,25 @@ func (c Subscriber) Run(res chan *RunResults) {
 			}
 		case <-doneSub:
 			// calculate results
-			duration := time.Now().Sub(started)
-			// runResults.MsgTimeMin = stats.StatsMin(times)
-			// runResults.MsgTimeMax = stats.StatsMax(times)
-			// runResults.MsgTimeMean = stats.StatsMean(times)
-			runResults.RunTime = duration.Seconds()
+			duration := time.Since(c.connected)
+			runResults.ClientRunTime = duration.Seconds()
 			runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
-			// calculate std if sample is > 1, otherwise leave as 0 (convention)
-			if c.MsgCount > 1 {
-				//runResults.MsgTimeStd = stats.StatsSampleStandardDeviation(times)
-			}
 
-			// report results and exit
 			res <- runResults
 			return
 		}
 	}
 }
 
-func (c Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
+func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 	onConnected := func(client mqtt.Client) {
+		c.connected = time.Now()
 		if !c.Quiet {
 			log.Printf("CLIENT %v is connected to the broker %v and topic %v\n", c.ClientId(), c.BrokerUrl(), c.MsgTopic)
 		}
 
 		ctr := 0
 		onMessage := func(inner mqtt.Client, m mqtt.Message) {
-			if !c.Quiet {
-				//log.Printf("Message received")
-			}
 			ctr++
 			rcvMsg <- &Message{
 				Topic: m.Topic(),
@@ -105,7 +94,7 @@ func (c Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 		token := client.Subscribe(c.MsgTopic, c.MsgQoS, onMessage)
 		token.Wait()
 		if token.Error() != nil {
-			log.Printf("CLIENT %v Error subscribing: %v\n", c.ClientId(), token.Error())
+			log.Printf("CLIENT %v Error subscribing to the topic %v: %v\n", c.ClientId(), c.MsgTopic, token.Error())
 		}
 	}
 
