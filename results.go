@@ -115,6 +115,7 @@ func calculateTotalResults(results []*RunResults, totalTime time.Duration,
 	totals.TestRunType = testType
 	totals.QoS = qos
 	totals.Dop = dop
+	totals.Clients = clients
 	totals.Messages = messages
 	totals.MessageSize = size
 
@@ -150,8 +151,7 @@ func publishResults(results []*RunResults, totals *TotalResults) {
 
 	err = sendResults(string(data))
 	if err != nil {
-		log.Fatalf("Error publishing test results to log analytics: %v", err)
-		return
+		log.Printf("Error publishing test results to log analytics: %v", err)
 	}
 	log.Println("Done")
 }
