@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"runtime"
 	"time"
+
+	rehttp "github.com/PuerkitoBio/rehttp"
 )
 
 func main() {
@@ -25,6 +28,7 @@ func main() {
 		quiet    = flag.Bool("quiet", false, "Suppress logs while running")
 		dop      = flag.Int("dop", 1, "Max number of threads")
 		runID    = flag.String("runId", "", "Test Run Id, used for reporting results")
+		waitFor  = flag.String("waitFor", "", "Address of a subscriber tool to wait for, before starting the test.")
 	)
 
 	flag.Parse()
@@ -46,6 +50,13 @@ func main() {
 	if *topics < 1 {
 		log.Fatalf("Invalid arguments: topics count should be > 1, given: %v", *topics)
 		return
+	}
+
+	if *pub && *waitFor != "" {
+		log.Printf("Waiting for subscriber at %v to start.", *waitFor)
+		ready := make(chan bool)
+		go waitForSubscriber(*waitFor, ready)
+		<-ready
 	}
 
 	runtime.GOMAXPROCS(*dop)
@@ -85,6 +96,11 @@ func main() {
 		}
 	}
 
+	log.Printf("All clients have started.")
+	if *sub {
+		go exposeReadyEndpoint()
+	}
+
 	// collect the results
 	results := make([]*RunResults, *clients)
 	for i := 0; i < *clients; i++ {
@@ -100,4 +116,39 @@ func main() {
 	// print stats
 	printResults(results, totals)
 	publishResults(results, totals)
+}
+
+func exposeReadyEndpoint() {
+	log.Printf("Exposing ready endpoint on http://:8080/.")
+	http.HandleFunc("/", readyHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func readyHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Confirming ready status.")
+	w.WriteHeader(http.StatusOK)
+}
+
+func waitForSubscriber(subAddress string, ready chan bool) {
+	// retry for 30 sec
+	tr := rehttp.NewTransport(
+		nil,
+		rehttp.RetryAll(rehttp.RetryMaxRetries(30),
+			rehttp.RetryIsErr(func(e error) bool { return e != nil })),
+		rehttp.ConstDelay(time.Second),
+	)
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   60 * time.Second, // Client timeout applies to all retries as a whole
+	}
+	resp, err := client.Get(subAddress)
+	if err != nil {
+		log.Fatalf("Did not get the ready confirmation from subscriber in time. Err: %v", err)
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		ready <- true
+	}
 }
