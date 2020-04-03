@@ -71,10 +71,10 @@ type JSONResults struct {
 
 var (
 	// Replace with your Workspace ID
-	customerID = os.Getenv("LOGANALYTICS_CUSTOMER_ID") //"71c40c82-c31f-4b9f-bed3-3717e2aa45c5"
+	customerID = os.Getenv("LOGANALYTICS_CUSTOMER_ID")
 
 	// Replace with your Primary or Secondary ID
-	sharedKey = os.Getenv("LOGANALYTICS_SHARED_KEY") //"+1diUgVZhqwJ67T3WxKn66l4Z0p7OTUkYVHxHfaxFNNCAsYqF4sB5RaroVMMJLx+3Z/qc1KQepeF/YO87tWGsg=="
+	sharedKey = os.Getenv("LOGANALYTICS_SHARED_KEY")
 
 	//Specify the name of the record type that you'll be creating
 	logType = os.Getenv("LOGANALYTICS_LOG_NAME")
@@ -83,11 +83,12 @@ var (
 	timeStampField = "DateValue"
 )
 
-func calculateTotalResults(results []*RunResults, totalTime time.Duration,
+func calculateTotalResults(runID string, results []*RunResults, totalTime time.Duration,
 	testType string, clients int, messages int, size int, qos int, dop int) *TotalResults {
 
 	totals := new(TotalResults)
 	var hostname, _ = os.Hostname()
+	totals.TestRunID = runID
 	totals.TestInstance = hostname
 	totals.TotalRunTime = totalTime.Seconds()
 

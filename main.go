@@ -24,6 +24,7 @@ func main() {
 		clients  = flag.Int("clients", 10, "Number of clients to start")
 		quiet    = flag.Bool("quiet", false, "Suppress logs while running")
 		dop      = flag.Int("dop", 1, "Max number of threads")
+		runID    = flag.String("runId", "", "Test Run Id, used for reporting results")
 	)
 
 	flag.Parse()
@@ -94,7 +95,7 @@ func main() {
 	if *sub {
 		testType = "sub"
 	}
-	totals := calculateTotalResults(results, totalTime, testType, *clients, *count, *size, *qos, *dop)
+	totals := calculateTotalResults(*runID, results, totalTime, testType, *clients, *count, *size, *qos, *dop)
 
 	// print stats
 	printResults(results, totals)
