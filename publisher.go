@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -18,11 +19,12 @@ type Publisher struct {
 	MsgCount   int
 	MsgQoS     byte
 	Quiet      bool
+	Panic      bool
 	connected  time.Time
 }
 
-func (c Publisher) ClientId() int {
-	return c.id
+func (c Publisher) ClientId() string {
+	return fmt.Sprintf("pub-%d", c.id)
 }
 
 func (c Publisher) BrokerUrl() string {
@@ -35,6 +37,10 @@ func (c Publisher) BrokerUser() string {
 
 func (c Publisher) BrokerPass() string {
 	return c.brokerPass
+}
+
+func (c Publisher) PanicMode() bool {
+	return c.Panic
 }
 
 func (c Publisher) Run(res chan *RunResults) {
@@ -107,6 +113,9 @@ func (c *Publisher) pubMessages(in, out chan *Message, doneGen, donePub chan boo
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("CLIENT %v Error sending message: %v\n", c.ClientId(), token.Error())
+					if c.Panic {
+						panic(token.Error())
+					}
 					m.Error = true
 				} else {
 					m.Delivered = time.Now()

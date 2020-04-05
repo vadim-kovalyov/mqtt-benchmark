@@ -20,7 +20,7 @@ import (
 
 // RunResults describes results of a single client / run
 type RunResults struct {
-	ID            int     `json:"id"`
+	ID            string  `json:"id"`
 	Successes     int64   `json:"successes"`
 	Failures      int64   `json:"failures"`
 	ClientRunTime float64 `json:"run_time"`

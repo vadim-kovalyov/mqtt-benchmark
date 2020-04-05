@@ -20,11 +20,12 @@ type Message struct {
 
 // Client represents a connection information for a publisher or a subscriber
 type Client interface {
-	ClientId() int
+	ClientId() string
 	BrokerUrl() string
 	BrokerUser() string
 	BrokerPass() string
 	Run(res chan *RunResults)
+	PanicMode() bool
 }
 
 func connect(c Client, onConnect func(client mqtt.Client)) {
@@ -32,10 +33,13 @@ func connect(c Client, onConnect func(client mqtt.Client)) {
 		AddBroker(c.BrokerUrl()).
 		SetClientID(fmt.Sprintf("mqtt-benchmark-%v-%v", time.Now().Format(time.RFC3339Nano), c.ClientId())).
 		SetCleanSession(true).
-		SetAutoReconnect(true).
+		SetAutoReconnect(false).
 		SetOnConnectHandler(onConnect).
 		SetConnectionLostHandler(func(client mqtt.Client, reason error) {
-			log.Printf("CLIENT %v lost connection to the broker: %v. Will reconnect...\n", c.ClientId(), reason.Error())
+			log.Printf("CLIENT %v lost connection to the broker: %v.\n", c.ClientId(), reason.Error())
+			if c.PanicMode() {
+				panic(reason.Error())
+			}
 		})
 	if c.BrokerUser() != "" && c.BrokerPass() != "" {
 		opts.SetUsername(c.BrokerUser())
@@ -47,5 +51,8 @@ func connect(c Client, onConnect func(client mqtt.Client)) {
 
 	if token.Error() != nil {
 		log.Printf("CLIENT %v had error connecting to the broker: %v\n", c.ClientId(), token.Error())
+		if c.PanicMode() {
+			panic(token.Error())
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -17,11 +18,12 @@ type Subscriber struct {
 	MsgCount   int
 	MsgQoS     byte
 	Quiet      bool
+	Panic      bool
 	connected  time.Time
 }
 
-func (c Subscriber) ClientId() int {
-	return c.id
+func (c Subscriber) ClientId() string {
+	return fmt.Sprintf("sub-%d", c.id)
 }
 
 func (c Subscriber) BrokerUrl() string {
@@ -34,6 +36,10 @@ func (c Subscriber) BrokerUser() string {
 
 func (c Subscriber) BrokerPass() string {
 	return c.brokerPass
+}
+
+func (c Subscriber) PanicMode() bool {
+	return c.Panic
 }
 
 func (c Subscriber) Run(res chan *RunResults) {
@@ -95,6 +101,9 @@ func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 		token.Wait()
 		if token.Error() != nil {
 			log.Printf("CLIENT %v Error subscribing to the topic %v: %v\n", c.ClientId(), c.MsgTopic, token.Error())
+			if c.Panic {
+				panic(token.Error())
+			}
 		}
 	}
 

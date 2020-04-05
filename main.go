@@ -29,6 +29,7 @@ func main() {
 		dop      = flag.Int("dop", 1, "Max number of threads")
 		runID    = flag.String("runId", "", "Test Run Id, used for reporting results")
 		waitFor  = flag.String("waitFor", "", "Address of a subscriber tool to wait for, before starting the test.")
+		panic    = flag.Bool("panic", false, "If specified, the tool will panic on any connection/protocol error.")
 	)
 
 	flag.Parse()
@@ -78,6 +79,7 @@ func main() {
 				MsgCount:   *count,
 				MsgQoS:     byte(*qos),
 				Quiet:      *quiet,
+				Panic:      *panic,
 			}
 			go c.Run(resCh)
 		} else {
@@ -91,6 +93,7 @@ func main() {
 				MsgCount:   *count,
 				MsgQoS:     byte(*qos),
 				Quiet:      *quiet,
+				Panic:      *panic,
 			}
 			go c.Run(resCh)
 		}
