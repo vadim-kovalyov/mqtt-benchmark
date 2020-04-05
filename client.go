@@ -34,6 +34,7 @@ func connect(c Client, onConnect func(client mqtt.Client)) {
 		SetClientID(fmt.Sprintf("mqtt-benchmark-%v-%v", time.Now().Format(time.RFC3339Nano), c.ClientId())).
 		SetCleanSession(true).
 		SetAutoReconnect(false).
+		SetPingTimeout(30 * time.Minute).
 		SetOnConnectHandler(onConnect).
 		SetConnectionLostHandler(func(client mqtt.Client, reason error) {
 			log.Printf("CLIENT %v lost connection to the broker: %v.\n", c.ClientId(), reason.Error())
