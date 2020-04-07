@@ -14,23 +14,24 @@ import (
 func main() {
 
 	var (
-		pub      = flag.Bool("pub", false, "Indicates to initialize te test client as a publisher")
-		sub      = flag.Bool("sub", false, "Indicates to initialize the test client as a subscriber")
-		broker   = flag.String("broker", "tcp://localhost:1883", "MQTT broker endpoint as scheme://host:port")
-		topic    = flag.String("topic", "/test", "MQTT topic for outgoing messages")
-		topics   = flag.Int("topics", 1, "Number of topics to use")
-		username = flag.String("username", "", "MQTT username (empty if auth disabled)")
-		password = flag.String("password", "", "MQTT password (empty if auth disabled)")
-		qos      = flag.Int("qos", 1, "QoS for published messages")
-		size     = flag.Int("size", 100, "Size of the messages payload (bytes)")
-		count    = flag.Int("count", 0, "Number of messages to send or receive per client. If not specifier - run for '-duration' instead.")
-		duration = flag.Duration("duration", 60*time.Minute, "Maximum duration of the test.")
-		clients  = flag.Int("clients", 10, "Number of clients to start")
-		quiet    = flag.Bool("quiet", false, "Suppress logs while running")
-		dop      = flag.Int("dop", 1, "Max number of threads")
-		runID    = flag.String("runId", "", "Test Run Id, used for reporting results")
-		waitFor  = flag.String("waitFor", "", "Address of a subscriber tool to wait for, before starting the test.")
-		panic    = flag.Bool("panic", false, "If specified, the tool will panic on any connection/protocol error.")
+		pub         = flag.Bool("pub", false, "Indicates to initialize te test client as a publisher")
+		sub         = flag.Bool("sub", false, "Indicates to initialize the test client as a subscriber")
+		broker      = flag.String("broker", "tcp://localhost:1883", "MQTT broker endpoint as scheme://host:port")
+		topic       = flag.String("topic", "/test", "MQTT topic for outgoing messages")
+		topics      = flag.Int("topics", 1, "Number of topics to use")
+		username    = flag.String("username", "", "MQTT username (empty if auth disabled)")
+		password    = flag.String("password", "", "MQTT password (empty if auth disabled)")
+		qos         = flag.Int("qos", 1, "QoS for published messages")
+		size        = flag.Int("size", 100, "Size of the messages payload (bytes)")
+		count       = flag.Int("count", 0, "Number of messages to send or receive per client. If not specifier - run for '-duration' instead.")
+		duration    = flag.Duration("duration", 60*time.Minute, "Maximum duration of the test.")
+		clients     = flag.Int("clients", 10, "Number of clients to start")
+		quiet       = flag.Bool("quiet", false, "Suppress logs while running")
+		dop         = flag.Int("dop", 1, "Max number of threads")
+		runID       = flag.String("runId", "", "Test Run Id, used for reporting results")
+		waitFor     = flag.String("waitFor", "", "Address of a subscriber tool to wait for, before starting the test.")
+		panic       = flag.Bool("panic", false, "If specified, the tool will panic on any connection/protocol error.")
+		idleTimeout = flag.Duration("idletimeout", 30*time.Second, "Max idle time b/w incoming messages.")
 	)
 
 	flag.Parse()
@@ -97,7 +98,7 @@ func main() {
 				Quiet:        *quiet,
 				Panic:        *panic,
 				TestDuration: *duration,
-				IdleTimeout:  15 * time.Second,
+				IdleTimeout:  *idleTimeout,
 			}
 			go c.Run(resCh)
 		}
