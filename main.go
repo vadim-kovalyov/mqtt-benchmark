@@ -71,32 +71,33 @@ func main() {
 		}
 		if *pub {
 			c := Publisher{
-				id:          i,
-				brokerURL:   *broker,
-				brokerUser:  *username,
-				brokerPass:  *password,
-				MsgTopic:    fmt.Sprintf("%s%d", *topic, i%(*topics)),
-				MsgSize:     *size,
-				MsgCount:    *count,
-				MsgQoS:      byte(*qos),
-				Quiet:       *quiet,
-				Panic:       *panic,
-				TestTimeout: *duration,
+				id:           i,
+				brokerURL:    *broker,
+				brokerUser:   *username,
+				brokerPass:   *password,
+				MsgTopic:     fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgSize:      *size,
+				MsgCount:     *count,
+				MsgQoS:       byte(*qos),
+				Quiet:        *quiet,
+				Panic:        *panic,
+				TestDuration: *duration,
 			}
 			go c.Run(resCh)
 		} else {
 			c := Subscriber{
-				id:          i,
-				brokerURL:   *broker,
-				brokerUser:  *username,
-				brokerPass:  *password,
-				MsgTopic:    fmt.Sprintf("%s%d", *topic, i%(*topics)),
-				MsgSize:     *size,
-				MsgCount:    *count,
-				MsgQoS:      byte(*qos),
-				Quiet:       *quiet,
-				Panic:       *panic,
-				IdleTimeout: 30 * time.Second,
+				id:           i,
+				brokerURL:    *broker,
+				brokerUser:   *username,
+				brokerPass:   *password,
+				MsgTopic:     fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgSize:      *size,
+				MsgCount:     *count,
+				MsgQoS:       byte(*qos),
+				Quiet:        *quiet,
+				Panic:        *panic,
+				TestDuration: *duration,
+				IdleTimeout:  15 * time.Second,
 			}
 			go c.Run(resCh)
 		}

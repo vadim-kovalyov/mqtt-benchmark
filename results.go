@@ -28,31 +28,37 @@ type RunResults struct {
 	MsgTimeMax    float64 `json:"msg_time_max"`
 	MsgTimeMean   float64 `json:"msg_time_mean"`
 	MsgTimeStd    float64 `json:"msg_time_std"`
-	MsgsPerSec    float64 `json:"msgs_per_sec"`
 }
 
 // TotalResults describes results of all clients / runs
 type TotalResults struct {
-	TestRunID         string  `json:"run_id"`
-	TestInstance      string  `json:"run_instance"`
-	TestRunType       string  `json:"run_type"` //pub or sub
-	Clients           int     `json:"num_clients"`
-	Messages          int     `json:"num_messages"`
-	MessageSize       int     `json:"message_size"`
-	Dop               int     `json:"dop"`
-	QoS               int     `json:"qos"`
-	Ratio             float64 `json:"ratio"`
-	Successes         int64   `json:"successes"`
-	Failures          int64   `json:"failures"`
-	TotalRunTime      float64 `json:"total_run_time"`
+	TestRunID    string  `json:"run_id"`
+	TestInstance string  `json:"run_instance"`
+	TestRunType  string  `json:"run_type"` //pub or sub
+	Clients      int     `json:"num_clients"`
+	Messages     int     `json:"num_messages"`
+	MessageSize  int     `json:"message_size"`
+	Dop          int     `json:"dop"`
+	QoS          int     `json:"qos"`
+	Ratio        float64 `json:"ratio"`
+	Successes    int64   `json:"successes"`
+	Failures     int64   `json:"failures"`
+	TotalRunTime float64 `json:"total_run_time"`
+
 	ClientRunTimeMin  float64 `json:"client_run_time_min"`
 	ClientRunTimeMax  float64 `json:"client_run_time_max"`
 	ClientRunTimeMean float64 `json:"client_run_time_mean"`
 	ClientRunTimeStd  float64 `json:"client_run_time_std"`
-	MsgTimeMin        float64 `json:"msg_time_min"`
-	MsgTimeMax        float64 `json:"msg_time_max"`
-	MsgTimeMean       float64 `json:"msg_time_mean_mean"`
-	MsgTimeStd        float64 `json:"msg_time_mean_std"`
+
+	MsgPerClientMin  float64 `json:"msg_per_client_min"`
+	MsgPerClientMax  float64 `json:"msg_per_client_max"`
+	MsgPerClientMean float64 `json:"msg_per_client_mean"`
+	MsgPerClientStd  float64 `json:"msg_per_client_std"`
+
+	MsgTimeMin  float64 `json:"msg_time_min"`
+	MsgTimeMax  float64 `json:"msg_time_max"`
+	MsgTimeMean float64 `json:"msg_time_mean_mean"`
+	MsgTimeStd  float64 `json:"msg_time_mean_std"`
 
 	// TotalMsgsPerSec is a total average throughput, calculated as sum of all messages
 	// from all clients divided by total execution time
@@ -93,6 +99,7 @@ func calculateTotalResults(runID string, results []*RunResults, totalTime time.D
 	totals.TotalRunTime = totalTime.Seconds()
 
 	msgTimeMeans := make([]float64, len(results))
+	msgsPerClient := make([]float64, len(results))
 	msgsPerSecs := make([]float64, len(results))
 	runTimes := make([]float64, len(results))
 
@@ -110,8 +117,10 @@ func calculateTotalResults(runID string, results []*RunResults, totalTime time.D
 		}
 
 		msgTimeMeans[i] = res.MsgTimeMean
-		msgsPerSecs[i] = res.MsgsPerSec
+		msgsPerClient[i] = float64(res.Successes + res.Failures)
 		runTimes[i] = res.ClientRunTime
+		msgsPerSecs[i] = float64(res.Successes) / res.ClientRunTime
+
 	}
 	totals.TestRunType = testType
 	totals.QoS = qos
@@ -128,6 +137,10 @@ func calculateTotalResults(runID string, results []*RunResults, totalTime time.D
 	totals.ClientRunTimeMin = stats.StatsMin(runTimes)
 	totals.ClientRunTimeMax = stats.StatsMax(runTimes)
 
+	totals.MsgPerClientMean = stats.StatsMean(msgsPerClient)
+	totals.MsgPerClientMin = stats.StatsMin(msgsPerClient)
+	totals.MsgPerClientMax = stats.StatsMax(msgsPerClient)
+
 	totals.MsgTimeMin = stats.StatsMin(msgTimeMeans)
 	totals.MsgTimeMax = stats.StatsMax(msgTimeMeans)
 	totals.MsgTimeMean = stats.StatsMean(msgTimeMeans)
@@ -136,6 +149,7 @@ func calculateTotalResults(runID string, results []*RunResults, totalTime time.D
 	if clients > 1 {
 		totals.ClientRunTimeStd = stats.StatsSampleStandardDeviation(runTimes)
 		totals.MsgTimeStd = stats.StatsSampleStandardDeviation(msgTimeMeans)
+		totals.MsgPerClientStd = stats.StatsSampleStandardDeviation(msgsPerClient)
 	}
 
 	return totals
@@ -174,6 +188,12 @@ func printResults(results []*RunResults, totals *TotalResults) {
 	fmt.Printf("Client Runtime Min (sec):         %.3f\n", totals.ClientRunTimeMin)
 	fmt.Printf("Client Runtime Max (sec):         %.3f\n", totals.ClientRunTimeMax)
 	fmt.Printf("Client Runtime Std (sec):         %.3f\n", totals.ClientRunTimeStd)
+
+	fmt.Printf("Messages per Client Avg:         %.3f\n", totals.MsgPerClientMean)
+	fmt.Printf("Messages per Client Min:         %.3f\n", totals.MsgPerClientMin)
+	fmt.Printf("Messages per Client Max:         %.3f\n", totals.MsgPerClientMax)
+	fmt.Printf("Messages per Client Std:         %.3f\n", totals.MsgPerClientStd)
+
 	fmt.Printf("Msg Latency Avg (ms):             %.3f\n", totals.MsgTimeMean)
 	fmt.Printf("Msg Latency Min (ms):             %.3f\n", totals.MsgTimeMin)
 	fmt.Printf("Msg Latency Max (ms):             %.3f\n", totals.MsgTimeMax)

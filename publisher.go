@@ -10,19 +10,19 @@ import (
 )
 
 type Publisher struct {
-	id          int
-	brokerURL   string
-	brokerUser  string
-	brokerPass  string
-	MsgTopic    string
-	MsgSize     int
-	MsgCount    int
-	MsgQoS      byte
-	Quiet       bool
-	Panic       bool
-	TestTimeout time.Duration
-	testTimer   *time.Timer
-	connected   time.Time
+	id           int
+	brokerURL    string
+	brokerUser   string
+	brokerPass   string
+	MsgTopic     string
+	MsgSize      int
+	MsgCount     int
+	MsgQoS       byte
+	Quiet        bool
+	Panic        bool
+	TestDuration time.Duration
+	testTimer    *time.Timer
+	connected    time.Time
 }
 
 func (c Publisher) ClientId() string {
@@ -54,7 +54,7 @@ func (c Publisher) Run(res chan *RunResults) {
 		ID: c.ClientId(),
 	}
 
-	c.testTimer = time.NewTimer(c.TestTimeout)
+	c.testTimer = time.NewTimer(c.TestDuration)
 
 	// start generator
 	go c.genMessages(newMsgs, doneGen)
@@ -132,12 +132,11 @@ func (c *Publisher) pubMessages(in, out chan *Message, doneGen, donePub chan boo
 }
 
 func (c Publisher) prepareResult(runResults *RunResults, times []float64) *RunResults {
-	duration := time.Now().Sub(c.connected)
+	duration := time.Since(c.connected)
 	runResults.MsgTimeMin = stats.StatsMin(times)
 	runResults.MsgTimeMax = stats.StatsMax(times)
 	runResults.MsgTimeMean = stats.StatsMean(times)
 	runResults.ClientRunTime = duration.Seconds()
-	runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
 
 	// calculate std if sample is > 1, otherwise leave as 0 (convention)
 	if c.MsgCount > 1 {
