@@ -23,7 +23,8 @@ func main() {
 		password = flag.String("password", "", "MQTT password (empty if auth disabled)")
 		qos      = flag.Int("qos", 1, "QoS for published messages")
 		size     = flag.Int("size", 100, "Size of the messages payload (bytes)")
-		count    = flag.Int("count", 100, "Number of messages to send or receive per client")
+		count    = flag.Int("count", 0, "Number of messages to send or receive per client. If not specifier - run for '-duration' instead.")
+		duration = flag.Duration("duration", 60*time.Minute, "Maximum duration of the test.")
 		clients  = flag.Int("clients", 10, "Number of clients to start")
 		quiet    = flag.Bool("quiet", false, "Suppress logs while running")
 		dop      = flag.Int("dop", 1, "Max number of threads")
@@ -34,7 +35,7 @@ func main() {
 
 	flag.Parse()
 	if !(*pub != *sub) {
-		log.Fatalf("Invalid arguments: must speficy either pub or sub mode")
+		log.Fatalf("Invalid arguments: must specify either pub or sub mode")
 		return
 	}
 
@@ -43,8 +44,8 @@ func main() {
 		return
 	}
 
-	if *count < 1 {
-		log.Fatalf("Invalid arguments: messages count should be > 1, given: %v", *count)
+	if *count < 0 {
+		log.Fatalf("Invalid arguments: messages count should be >= 0, given: %v", *count)
 		return
 	}
 
@@ -70,30 +71,32 @@ func main() {
 		}
 		if *pub {
 			c := Publisher{
-				id:         i,
-				brokerURL:  *broker,
-				brokerUser: *username,
-				brokerPass: *password,
-				MsgTopic:   fmt.Sprintf("%s%d", *topic, i%(*topics)),
-				MsgSize:    *size,
-				MsgCount:   *count,
-				MsgQoS:     byte(*qos),
-				Quiet:      *quiet,
-				Panic:      *panic,
+				id:          i,
+				brokerURL:   *broker,
+				brokerUser:  *username,
+				brokerPass:  *password,
+				MsgTopic:    fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgSize:     *size,
+				MsgCount:    *count,
+				MsgQoS:      byte(*qos),
+				Quiet:       *quiet,
+				Panic:       *panic,
+				TestTimeout: *duration,
 			}
 			go c.Run(resCh)
 		} else {
 			c := Subscriber{
-				id:         i,
-				brokerURL:  *broker,
-				brokerUser: *username,
-				brokerPass: *password,
-				MsgTopic:   fmt.Sprintf("%s%d", *topic, i%(*topics)),
-				MsgSize:    *size,
-				MsgCount:   *count,
-				MsgQoS:     byte(*qos),
-				Quiet:      *quiet,
-				Panic:      *panic,
+				id:          i,
+				brokerURL:   *broker,
+				brokerUser:  *username,
+				brokerPass:  *password,
+				MsgTopic:    fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgSize:     *size,
+				MsgCount:    *count,
+				MsgQoS:      byte(*qos),
+				Quiet:       *quiet,
+				Panic:       *panic,
+				IdleTimeout: 30 * time.Second,
 			}
 			go c.Run(resCh)
 		}

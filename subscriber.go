@@ -9,17 +9,19 @@ import (
 )
 
 type Subscriber struct {
-	id         int
-	brokerURL  string
-	brokerUser string
-	brokerPass string
-	MsgTopic   string
-	MsgSize    int
-	MsgCount   int
-	MsgQoS     byte
-	Quiet      bool
-	Panic      bool
-	connected  time.Time
+	id          int
+	brokerURL   string
+	brokerUser  string
+	brokerPass  string
+	MsgTopic    string
+	MsgSize     int
+	MsgCount    int
+	MsgQoS      byte
+	Quiet       bool
+	Panic       bool
+	IdleTimeout time.Duration
+	idleTimer   *time.Timer
+	connected   time.Time
 }
 
 func (c Subscriber) ClientId() string {
@@ -49,6 +51,7 @@ func (c Subscriber) Run(res chan *RunResults) {
 		ID: c.ClientId(),
 	}
 
+	c.idleTimer = time.NewTimer(c.IdleTimeout)
 	c.subscribe(rcvMsgs, doneSub)
 
 	for {
@@ -59,13 +62,15 @@ func (c Subscriber) Run(res chan *RunResults) {
 				runResults.Failures++
 			} else {
 				runResults.Successes++
+				c.idleTimer.Reset(c.IdleTimeout)
 			}
 		case <-doneSub:
-			// calculate results
-			duration := time.Since(c.connected)
-			runResults.ClientRunTime = duration.Seconds()
-			runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
-
+			runResults = c.prepareResult(runResults)
+			res <- runResults
+			return
+		case <-c.idleTimer.C:
+			log.Printf("CLIENT %v stopping after idle time: %v\n", c.ClientId(), c.IdleTimeout)
+			runResults = c.prepareResult(runResults)
 			res <- runResults
 			return
 		}
@@ -87,7 +92,7 @@ func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 				QoS:   m.Qos(),
 			}
 
-			if ctr >= c.MsgCount {
+			if c.MsgCount > 0 && ctr >= c.MsgCount {
 				client.Unsubscribe(c.MsgTopic)
 				client.Disconnect(1000)
 				if !c.Quiet {
@@ -108,4 +113,11 @@ func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 	}
 
 	connect(c, onConnected)
+}
+
+func (c Subscriber) prepareResult(runResults *RunResults) *RunResults {
+	duration := time.Since(c.connected)
+	runResults.ClientRunTime = duration.Seconds()
+	runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
+	return runResults
 }

@@ -10,17 +10,19 @@ import (
 )
 
 type Publisher struct {
-	id         int
-	brokerURL  string
-	brokerUser string
-	brokerPass string
-	MsgTopic   string
-	MsgSize    int
-	MsgCount   int
-	MsgQoS     byte
-	Quiet      bool
-	Panic      bool
-	connected  time.Time
+	id          int
+	brokerURL   string
+	brokerUser  string
+	brokerPass  string
+	MsgTopic    string
+	MsgSize     int
+	MsgCount    int
+	MsgQoS      byte
+	Quiet       bool
+	Panic       bool
+	TestTimeout time.Duration
+	testTimer   *time.Timer
+	connected   time.Time
 }
 
 func (c Publisher) ClientId() string {
@@ -52,6 +54,8 @@ func (c Publisher) Run(res chan *RunResults) {
 		ID: c.ClientId(),
 	}
 
+	c.testTimer = time.NewTimer(c.TestTimeout)
+
 	// start generator
 	go c.genMessages(newMsgs, doneGen)
 	// start publisher
@@ -69,19 +73,11 @@ func (c Publisher) Run(res chan *RunResults) {
 				times = append(times, float64(m.Delivered.Sub(m.Sent).Milliseconds())) // in milliseconds
 			}
 		case <-donePub:
-			// calculate results
-			duration := time.Now().Sub(c.connected)
-			runResults.MsgTimeMin = stats.StatsMin(times)
-			runResults.MsgTimeMax = stats.StatsMax(times)
-			runResults.MsgTimeMean = stats.StatsMean(times)
-			runResults.ClientRunTime = duration.Seconds()
-			runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
-
-			// calculate std if sample is > 1, otherwise leave as 0 (convention)
-			if c.MsgCount > 1 {
-				runResults.MsgTimeStd = stats.StatsSampleStandardDeviation(times)
-			}
-
+			runResults = c.prepareResult(runResults, times)
+			res <- runResults
+			return
+		case <-c.testTimer.C:
+			runResults = c.prepareResult(runResults, times)
 			res <- runResults
 			return
 		}
@@ -89,7 +85,7 @@ func (c Publisher) Run(res chan *RunResults) {
 }
 
 func (c Publisher) genMessages(ch chan *Message, done chan bool) {
-	for i := 0; i < c.MsgCount; i++ {
+	for i := 0; i < c.MsgCount || c.MsgCount == 0; i++ {
 		ch <- &Message{
 			Topic:   c.MsgTopic,
 			QoS:     c.MsgQoS,
@@ -133,4 +129,20 @@ func (c *Publisher) pubMessages(in, out chan *Message, doneGen, donePub chan boo
 	}
 
 	connect(c, onConnected)
+}
+
+func (c Publisher) prepareResult(runResults *RunResults, times []float64) *RunResults {
+	duration := time.Now().Sub(c.connected)
+	runResults.MsgTimeMin = stats.StatsMin(times)
+	runResults.MsgTimeMax = stats.StatsMax(times)
+	runResults.MsgTimeMean = stats.StatsMean(times)
+	runResults.ClientRunTime = duration.Seconds()
+	runResults.MsgsPerSec = float64(runResults.Successes) / duration.Seconds()
+
+	// calculate std if sample is > 1, otherwise leave as 0 (convention)
+	if c.MsgCount > 1 {
+		runResults.MsgTimeStd = stats.StatsSampleStandardDeviation(times)
+	}
+
+	return runResults
 }
