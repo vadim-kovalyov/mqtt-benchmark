@@ -36,6 +36,7 @@ type TotalResults struct {
 	TestInstance string  `json:"run_instance"`
 	TestRunType  string  `json:"run_type"` //pub or sub
 	Clients      int     `json:"num_clients"`
+	Topics       int     `json:"num_topics"`
 	Messages     int     `json:"num_messages"`
 	MessageSize  int     `json:"message_size"`
 	Dop          int     `json:"dop"`
@@ -90,7 +91,7 @@ var (
 )
 
 func calculateTotalResults(runID string, results []*RunResults, totalTime time.Duration,
-	testType string, clients int, messages int, size int, qos int, dop int) *TotalResults {
+	testType string, clients int, topics int, messages int, size int, qos int, dop int) *TotalResults {
 
 	totals := new(TotalResults)
 	var hostname, _ = os.Hostname()
@@ -126,6 +127,7 @@ func calculateTotalResults(runID string, results []*RunResults, totalTime time.D
 	totals.QoS = qos
 	totals.Dop = dop
 	totals.Clients = clients
+	totals.Topics = topics
 	totals.Messages = messages
 	totals.MessageSize = size
 
@@ -177,7 +179,10 @@ func printResults(results []*RunResults, totals *TotalResults) {
 	fmt.Printf("Test Instance:                    %v\n", totals.TestInstance)
 	fmt.Printf("Test Type:                        %v\n", totals.TestRunType)
 	fmt.Printf("Number of Clients:                %v\n", totals.Clients)
-	fmt.Printf("Messages per Client:              %v\n", totals.Messages)
+	fmt.Printf("Number of Topics:                 %v\n", totals.Topics)
+	if totals.Messages > 0 {
+		fmt.Printf("Messages per Client:              %v\n", totals.Messages)
+	}
 	fmt.Printf("Messag size (bytes):              %v\n", totals.MessageSize)
 	fmt.Printf("QoS:                              %v\n", totals.QoS)
 	fmt.Printf("DOP (Max threads):                %v\n", totals.Dop)

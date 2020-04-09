@@ -118,7 +118,7 @@ func main() {
 		testType = "sub"
 		totalTime = totalTime - *idleTimeout // subtract IdleTimeout from total duration for subscribers.
 	}
-	totals := calculateTotalResults(*runID, results, totalTime, testType, *clients, *count, *size, *qos, *dop)
+	totals := calculateTotalResults(*runID, results, totalTime, testType, *clients, *topics, *count, *size, *qos, *dop)
 
 	// print stats
 	printResults(results, totals)
