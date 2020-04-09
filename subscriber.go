@@ -150,6 +150,7 @@ func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 
 func (c Subscriber) prepareResult(runResults *RunResults) *RunResults {
 	duration := time.Since(c.connected)
+	duration = duration - c.IdleTimeout // subtract IdleTimeout from total duration.
 	runResults.ClientRunTime = duration.Seconds()
 	return runResults
 }

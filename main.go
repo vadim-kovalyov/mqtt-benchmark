@@ -57,9 +57,7 @@ func main() {
 
 	if *pub && *waitFor != "" {
 		log.Printf("Waiting for subscriber at %v to start.", *waitFor)
-		ready := make(chan bool)
-		go waitForSubscriber(*waitFor, ready)
-		<-ready
+		waitForSubscriber(*waitFor)
 	}
 
 	runtime.GOMAXPROCS(*dop)
@@ -118,6 +116,7 @@ func main() {
 	testType := "pub"
 	if *sub {
 		testType = "sub"
+		totalTime = totalTime - *idleTimeout // subtract IdleTimeout from total duration for subscribers.
 	}
 	totals := calculateTotalResults(*runID, results, totalTime, testType, *clients, *count, *size, *qos, *dop)
 
@@ -137,7 +136,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func waitForSubscriber(subAddress string, ready chan bool) {
+func waitForSubscriber(subAddress string) {
 	// retry for 30 sec
 	tr := rehttp.NewTransport(
 		nil,
@@ -154,9 +153,5 @@ func waitForSubscriber(subAddress string, ready chan bool) {
 		log.Fatalf("Did not get the ready confirmation from subscriber in time. Err: %v", err)
 		panic(err)
 	}
-
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusOK {
-		ready <- true
-	}
 }
