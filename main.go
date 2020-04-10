@@ -29,6 +29,7 @@ func main() {
 		quiet       = flag.Bool("quiet", false, "Suppress logs while running")
 		dop         = flag.Int("dop", 1, "Max number of threads")
 		runID       = flag.String("runId", "", "Test Run Id, used for reporting results")
+		caseID      = flag.String("caseId", "", "Test Case Id in the current test run, used for reporting results")
 		waitFor     = flag.String("waitFor", "", "Address of a subscriber tool to wait for, before starting the test.")
 		panic       = flag.Bool("panic", false, "If specified, the tool will panic on any connection/protocol error.")
 		idleTimeout = flag.Duration("idletimeout", 30*time.Second, "Max idle time b/w incoming messages.")
@@ -63,7 +64,7 @@ func main() {
 	runtime.GOMAXPROCS(*dop)
 
 	resCh := make(chan *RunResults)
-	start := time.Now()
+	startTime := time.Now()
 	for i := 0; i < *clients; i++ {
 		if !*quiet {
 			log.Println("Starting client ", i)
@@ -112,13 +113,13 @@ func main() {
 	for i := 0; i < *clients; i++ {
 		results[i] = <-resCh
 	}
-	totalTime := time.Since(start)
+	endTime := time.Now()
 	testType := "pub"
 	if *sub {
 		testType = "sub"
-		totalTime = totalTime - *idleTimeout // subtract IdleTimeout from total duration for subscribers.
+		endTime = endTime.Add(-*idleTimeout) // subtract IdleTimeout from total duration for subscribers.
 	}
-	totals := calculateTotalResults(*runID, results, totalTime, testType, *clients, *topics, *count, *size, *qos, *dop)
+	totals := calculateTotalResults(*runID, *caseID, results, startTime, endTime, testType, *clients, *topics, *count, *size, *qos, *dop)
 
 	// print stats
 	printResults(results, totals)

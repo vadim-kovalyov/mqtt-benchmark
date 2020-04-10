@@ -32,19 +32,22 @@ type RunResults struct {
 
 // TotalResults describes results of all clients / runs
 type TotalResults struct {
-	TestRunID    string  `json:"run_id"`
-	TestInstance string  `json:"run_instance"`
-	TestRunType  string  `json:"run_type"` //pub or sub
-	Clients      int     `json:"num_clients"`
-	Topics       int     `json:"num_topics"`
-	Messages     int     `json:"num_messages"`
-	MessageSize  int     `json:"message_size"`
-	Dop          int     `json:"dop"`
-	QoS          int     `json:"qos"`
-	Ratio        float64 `json:"ratio"`
-	Successes    int64   `json:"successes"`
-	Failures     int64   `json:"failures"`
-	TotalRunTime float64 `json:"total_run_time"`
+	TestRunID    string    `json:"run_id"`
+	TestInstance string    `json:"run_instance"`
+	TestRunType  string    `json:"run_type"` //pub or sub
+	TestCaseID   string    `json:"test_case_id"`
+	TestStart    time.Time `json:"test_start_time"`
+	TestEnd      time.Time `json:"test_end_time"`
+	Clients      int       `json:"num_clients"`
+	Topics       int       `json:"num_topics"`
+	Messages     int       `json:"num_messages"`
+	MessageSize  int       `json:"message_size"`
+	Dop          int       `json:"dop"`
+	QoS          int       `json:"qos"`
+	Ratio        float64   `json:"ratio"`
+	Successes    int64     `json:"successes"`
+	Failures     int64     `json:"failures"`
+	TotalRunTime float64   `json:"total_run_time"`
 
 	ClientRunTimeMin  float64 `json:"client_run_time_min"`
 	ClientRunTimeMax  float64 `json:"client_run_time_max"`
@@ -90,14 +93,17 @@ var (
 	timeStampField = "DateValue"
 )
 
-func calculateTotalResults(runID string, results []*RunResults, totalTime time.Duration,
+func calculateTotalResults(runID string, caseID string, results []*RunResults, startTime time.Time, endTime time.Time,
 	testType string, clients int, topics int, messages int, size int, qos int, dop int) *TotalResults {
 
 	totals := new(TotalResults)
 	var hostname, _ = os.Hostname()
 	totals.TestRunID = runID
+	totals.TestCaseID = caseID
 	totals.TestInstance = hostname
-	totals.TotalRunTime = totalTime.Seconds()
+	totals.TotalRunTime = endTime.Sub(startTime).Seconds()
+	totals.TestStart = startTime
+	totals.TestEnd = endTime
 
 	msgTimeMeans := make([]float64, len(results))
 	msgsPerClient := make([]float64, len(results))
@@ -176,6 +182,7 @@ func publishResults(results []*RunResults, totals *TotalResults) {
 func printResults(results []*RunResults, totals *TotalResults) {
 	fmt.Printf("========= TEST PARAMS =========\n")
 	fmt.Printf("Test Run Id:                      %v\n", totals.TestRunID)
+	fmt.Printf("Test Case Id:                     %v\n", totals.TestCaseID)
 	fmt.Printf("Test Instance:                    %v\n", totals.TestInstance)
 	fmt.Printf("Test Type:                        %v\n", totals.TestRunType)
 	fmt.Printf("Number of Clients:                %v\n", totals.Clients)
