@@ -32,7 +32,7 @@ func main() {
 		caseID      = flag.String("caseId", "", "Test Case Id in the current test run, used for reporting results")
 		waitFor     = flag.String("waitFor", "", "Address of a subscriber tool to wait for, before starting the test.")
 		panic       = flag.Bool("panic", false, "If specified, the tool will panic on any connection/protocol error.")
-		idleTimeout = flag.Duration("idletimeout", 30*time.Second, "Max idle time b/w incoming messages.")
+		idleTimeout = flag.Duration("idletimeout", 10*time.Second, "Max idle time b/w incoming messages.")
 	)
 
 	flag.Parse()
