@@ -17,7 +17,6 @@ func main() {
 		pub         = flag.Bool("pub", false, "Indicates to initialize te test client as a publisher")
 		sub         = flag.Bool("sub", false, "Indicates to initialize the test client as a subscriber")
 		broker      = flag.String("broker", "tcp://localhost:1883", "MQTT broker endpoint as scheme://host:port")
-		topic       = flag.String("topic", "/test", "MQTT topic for outgoing messages")
 		topics      = flag.Int("topics", 1, "Number of topics to use")
 		username    = flag.String("username", "", "MQTT username (empty if auth disabled)")
 		password    = flag.String("password", "", "MQTT password (empty if auth disabled)")
@@ -52,7 +51,17 @@ func main() {
 	}
 
 	if *topics < 1 {
-		log.Fatalf("Invalid arguments: topics count should be > 1, given: %v", *topics)
+		log.Fatalf("Invalid arguments: topics count should be > 1 and <= number of clients, given: %v", *topics)
+		return
+	}
+
+	if *pub && *topics > *clients {
+		log.Fatalf("Invalid arguments: topics count should not be greater than the number of clients, given: %v", *topics)
+		return
+	}
+
+	if *sub && *topics > *clients && *topics%(*clients) > 0 {
+		log.Fatalf("Invalid arguments: number of clients should be submultiple of or greater than the topics count, given: %v", *topics%(*clients))
 		return
 	}
 
@@ -75,7 +84,7 @@ func main() {
 				brokerURL:    *broker,
 				brokerUser:   *username,
 				brokerPass:   *password,
-				MsgTopic:     fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				MsgTopic:     fmt.Sprintf("/test%d", i%(*topics)),
 				MsgSize:      *size,
 				MsgCount:     *count,
 				MsgQoS:       byte(*qos),
@@ -90,7 +99,8 @@ func main() {
 				brokerURL:    *broker,
 				brokerUser:   *username,
 				brokerPass:   *password,
-				MsgTopic:     fmt.Sprintf("%s%d", *topic, i%(*topics)),
+				ClientsCount: *clients,
+				TopicsCount:  *topics,
 				MsgSize:      *size,
 				MsgCount:     *count,
 				MsgQoS:       byte(*qos),

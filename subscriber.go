@@ -9,16 +9,17 @@ import (
 )
 
 type Subscriber struct {
-	id         int
-	brokerURL  string
-	brokerUser string
-	brokerPass string
-	MsgTopic   string
-	MsgSize    int
-	MsgCount   int
-	MsgQoS     byte
-	Quiet      bool
-	Panic      bool
+	id           int
+	brokerURL    string
+	brokerUser   string
+	brokerPass   string
+	ClientsCount int
+	TopicsCount  int
+	MsgSize      int
+	MsgCount     int
+	MsgQoS       byte
+	Quiet        bool
+	Panic        bool
 
 	// TestDuration is the expected duration of the test.
 	// The test will run for *at least* the specified duration,
@@ -113,9 +114,6 @@ func (c Subscriber) Run(res chan *RunResults) {
 func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 	onConnected := func(client mqtt.Client) {
 		c.connected = time.Now()
-		if !c.Quiet {
-			log.Printf("CLIENT %v is connected to the broker %v and topic %v\n", c.ClientId(), c.BrokerUrl(), c.MsgTopic)
-		}
 
 		ctr := 0
 		onMessage := func(inner mqtt.Client, m mqtt.Message) {
@@ -126,7 +124,6 @@ func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 			}
 
 			if c.MsgCount > 0 && ctr >= c.MsgCount {
-				client.Unsubscribe(c.MsgTopic)
 				client.Disconnect(1000)
 				if !c.Quiet {
 					log.Printf("CLIENT %v is done receiving messages\n", c.ClientId())
@@ -135,10 +132,17 @@ func (c *Subscriber) subscribe(rcvMsg chan *Message, doneSub chan bool) {
 			}
 		}
 
-		token := client.Subscribe(c.MsgTopic, c.MsgQoS, onMessage)
+		topics := getTopicsForSubscriber(c.id, c.ClientsCount, c.TopicsCount, c.MsgQoS)
+
+		if !c.Quiet {
+			log.Printf("CLIENT %v is connected to the broker %v and topic(s) %v\n", c.ClientId(), c.BrokerUrl(), topics)
+		}
+
+		token := client.SubscribeMultiple(topics, onMessage)
 		token.Wait()
+
 		if token.Error() != nil {
-			log.Printf("CLIENT %v Error subscribing to the topic %v: %v\n", c.ClientId(), c.MsgTopic, token.Error())
+			log.Printf("CLIENT %v Error subscribing to the topic %v: %v\n", c.ClientId(), topics, token.Error())
 			if c.Panic {
 				panic(token.Error())
 			}
@@ -153,4 +157,30 @@ func (c Subscriber) prepareResult(runResults *RunResults) *RunResults {
 	duration = duration - c.IdleTimeout // subtract IdleTimeout from total duration.
 	runResults.ClientRunTime = duration.Seconds()
 	return runResults
+}
+
+/// getTopicsForSubscriber calculates the topic filters to subscribe based on the number of topics
+/// and the total number of clients. There are two cases: if clients >= topics, then each client subscribes
+/// to a single topic filter = [client id] % [topic count].
+/// Otherwise we spread the topics among clients, for example (clients = 3, topics = 12)
+///	client0: [0, 1, 2, 3]
+///	client1: [4, 5, 6, 7]
+///	client2: [8, 9, 10, 11]
+func getTopicsForSubscriber(subscriberID int, subscribers int, topics int, qos byte) map[string]byte {
+	if subscribers >= topics {
+		topicName := fmt.Sprintf("/test%d", subscriberID%topics)
+		return map[string]byte{topicName: qos}
+	}
+
+	topicsPerSubscriber := topics / subscribers
+	result := make(map[string]byte)
+	topicID := subscriberID * topicsPerSubscriber
+
+	for i := 0; i < topicsPerSubscriber; i++ {
+		topicName := fmt.Sprintf("/test%d", topicID)
+		result[topicName] = qos
+		topicID++
+	}
+	return result
+
 }
